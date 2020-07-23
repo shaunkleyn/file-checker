@@ -343,13 +343,16 @@ namespace RenameFiles
                         string[] files = Directory.GetFiles(folder, "*.*", SearchOption.TopDirectoryOnly);
                         if (files.Length == 0)
                         {
+                            Log($"Folder \"{ folder }\" is empty", ConsoleColor.Gray);
                             string emptyFolder = $"{folder}-EMPTY";
                             if (!Directory.Exists(emptyFolder))
                             {
+                                Log($"Renaming folder \"{ folder }\"", ConsoleColor.Gray);
                                 Directory.Move(folder, $"{folder}-EMPTY");
 
                                 if (Directory.Exists(emptyFolder))
                                 {
+                                    Log($"Deleting folder \"{ folder }\"", ConsoleColor.Red);
                                     Directory.Delete(emptyFolder, true);
                                 }
                                 continue;
@@ -410,7 +413,7 @@ namespace RenameFiles
         {
             var seriesPaths = ConfigurationManager.AppSettings["SeriesFolders"].Split(',');
             var orphanPath = ConfigurationManager.AppSettings["OrphanFolder"];
-            string seasonName = $"Season {seasonNumber.ToString().PadLeft(2, '0')}";
+            string seasonName = $"Season {seasonNumber}";
             string path;
             foreach (string seriesPath in seriesPaths)
             {

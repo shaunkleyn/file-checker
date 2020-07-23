@@ -3,4 +3,3 @@ C:\Users\shaun.kleyn\source\repos\RenameFiles\RenameFiles\bin\Debug\RenameFiles.
 C:\Users\shaun.kleyn\source\repos\RenameFiles\RenameFiles\bin\Debug\RenameFiles.pdb
 C:\Users\shaun.kleyn\source\repos\RenameFiles\RenameFiles\obj\Debug\RenameFiles.exe
 C:\Users\shaun.kleyn\source\repos\RenameFiles\RenameFiles\obj\Debug\RenameFiles.pdb
-C:\Users\shaun.kleyn\source\repos\RenameFiles\RenameFiles\obj\Debug\RenameFiles.csprojAssemblyReference.cache
