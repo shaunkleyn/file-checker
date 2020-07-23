@@ -1,14 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace RenameFiles
 {
     internal class Program
     {
-        private const string SERIES_REGEX = @"(_UNPACK_)?(?<SHOW>.+)(?<SEASON>[sS]\d+[eE]\d+)\.?((?<DESCRIPTION>.*)(?<QUALITY>(720|1080)p?))?";
+        private const string SERIES_REGEX = @"(_UNPACK_)?(?<SHOW>.+)(?<SEASON>[sS](?<SEASONNUMBER>\d+)[eE]\d+)\.?((?<DESCRIPTION>.*)(?<QUALITY>(720|1080)p?))?";
+        private static string logFilePath;
 
         private static string[] testnames = {@"Young.Sheldon.S02E05.1080p.HDTV.x264-CRAVERS-postbot.1",
 "young.sheldon.s02e22.internal.720p.web.x264-bamboozle-BUYMORE.1",
@@ -321,28 +324,9 @@ namespace RenameFiles
             Regex expression = new Regex(SERIES_REGEX);
             Match match;
 
-            List<string> newNames = new List<string>();
-
-            //foreach (string name in testnames)
-            //{
-            //    match = expression.Match(name);
-            //    if (match.Success)
-            //    {
-            //        string show = match.Groups["SHOW"].Value;
-            //        string season = match.Groups["SEASON"].Value;
-            //        string description = match.Groups["DESCRIPTION"].Value;
-            //        string quality = match.Groups["QUALITY"].Value;
-
-            // string newName = $"{show.Replace(".", " ").Trim()} { season.Trim().ToUpper() } [{
-            // quality.Trim() }]";
-
-            // if (!string.IsNullOrEmpty(description.Trim())) { newName = $"{show.Replace(".", "
-            // ").Trim() } { season.Trim().ToUpper() } - { description.Replace(".", " ").Trim() } [{
-            // quality.Trim() }]"; }
-
-            //        newNames.Add(newName);
-            //    }
-            //}
+            logFilePath = $"{Directory.GetCurrentDirectory()}//rename_log_{DateTime.Now.ToString("yyMMdd_HHmm")}.txt";
+            //File.Create(logFilePath);
+            //File.
 
             var folders = Directory.GetDirectories(Directory.GetCurrentDirectory());
             foreach (string folder in folders)
@@ -352,67 +336,162 @@ namespace RenameFiles
                 try
                 {
                     string folderName = folder.Split('\\').Last();
-
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Console.WriteLine($"Checking \"{ folderName }\"");
+                    Log($"Checking \"{ folderName }\"", ConsoleColor.Gray);
                     match = expression.Match(folderName);
                     if (match.Success)
                     {
                         string[] files = Directory.GetFiles(folder, "*.*", SearchOption.TopDirectoryOnly);
-
-                        if (files.Length == 1)
+                        if (files.Length == 0)
                         {
-                            FileInfo fi = new FileInfo(files[0]);
-
-                            string show = match.Groups["SHOW"].Value;
-                            string season = match.Groups["SEASON"].Value;
-                            string description = match.Groups["DESCRIPTION"].Value;
-                            string quality = match.Groups["QUALITY"].Value;
-
-                            string newName = $"{show.Replace(".", " ").Trim()} { season.Trim().ToUpper() } [{ quality.Trim() }]{fi.Extension}";
-
-                            if (!string.IsNullOrEmpty(description.Trim()))
+                            string emptyFolder = $"{folder}-EMPTY";
+                            if (!Directory.Exists(emptyFolder))
                             {
-                                newName = $"{show.Replace(".", " ").Trim() } { season.Trim().ToUpper() } - { description.Replace(".", " ").Trim() } [{ quality.Trim() }]{fi.Extension}";
-                            }
+                                Directory.Move(folder, $"{folder}-EMPTY");
 
-                            string currentPath = fi.FullName;
-                            string newPathAndName = $"{Directory.GetCurrentDirectory()}\\{newName}";
-
-                            Console.ForegroundColor = ConsoleColor.Cyan;
-                            Console.WriteLine($"Creating file \"{ newName }\"");
-
-                            if (File.Exists(newPathAndName))
-                            {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.WriteLine($"File \"{newName}\" already exists!");
+                                if (Directory.Exists(emptyFolder))
+                                {
+                                    Directory.Delete(emptyFolder, true);
+                                }
                                 continue;
                             }
+                        }
 
-                            File.Copy(currentPath, newPathAndName);
+                        FileInfo fi = new FileInfo(files[0]);
 
-                            if (File.Exists(newPathAndName))
-                            {
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine($"Deleting folder \"{ folderName }\"");
+                        string show = match.Groups["SHOW"].Value.Replace(".", " ");
+                        string season = match.Groups["SEASON"].Value;
+                        string seasonNumber = match.Groups["SEASONNUMBER"].Value;
+                        string description = match.Groups["DESCRIPTION"].Value;
+                        string quality = match.Groups["QUALITY"].Value;
+                        string newName = $"{show.Replace(".", " ").Trim()} { season.Trim().ToUpper() } [{ quality.Trim() }]{fi.Extension}";
 
-                                Directory.Delete(folder, true);
+                        if (!string.IsNullOrEmpty(description.Trim()))
+                        {
+                            newName = $"{show.Replace(".", " ").Trim() } { season.Trim().ToUpper() } - { description.Replace(".", " ").Trim() } [{ quality.Trim() }]{fi.Extension}";
+                        }
 
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                Console.WriteLine("Success");
-                            }
+                        string newPath = GetPathForSeries(show, int.Parse(seasonNumber));
+                        string currentPath = fi.FullName;
+                        string newPathAndName = $"{newPath}\\{newName}";
+
+                        Log($"Creating file \"{ newName }\" in \"{newPath}\"", ConsoleColor.Cyan);
+
+                        if (File.Exists(newPathAndName))
+                        {
+                            Log($"File \"{newName}\" already exists in \"{newPathAndName}\"!", ConsoleColor.Red);
+                            continue;
+                        }
+
+                        File.Copy(currentPath, newPathAndName);
+
+                        if (File.Exists(newPathAndName))
+                        {
+                            Log($"Deleting folder \"{ folderName }\"", ConsoleColor.Yellow);
+
+                            Directory.Delete(folder, true);
+
+                            Log("Success", ConsoleColor.Green);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(ex);
+                    Log(ex.Message, ConsoleColor.Red);
                     Console.WriteLine("");
                 }
+
+                LogEmptyLine();
             }
 
             Console.ReadLine();
+        }
+
+        private static string GetPathForSeries(string seriesName, int seasonNumber)
+        {
+            var seriesPaths = ConfigurationManager.AppSettings["SeriesFolders"].Split(',');
+            var orphanPath = ConfigurationManager.AppSettings["OrphanFolder"];
+            string seasonName = $"Season {seasonNumber.ToString().PadLeft(2, '0')}";
+            string path;
+            foreach (string seriesPath in seriesPaths)
+            {
+                path = $"{seriesPath}\\{seriesName.Trim()}";
+                if (Directory.Exists(path))
+                {
+                    path = $"{path}\\{seasonName}";
+                    if (!Directory.Exists(path))
+                    {
+                        if (CreateFolderIfNotExist(path))
+                        {
+                            return path;
+                        }
+                    }
+
+                    return path;
+                }
+                else
+                {
+                    orphanPath = $"{orphanPath}\\{seriesName.Trim()}\\{seasonName}";
+                    Directory.CreateDirectory(orphanPath);
+                }
+            }
+
+            return orphanPath;
+        }
+
+        private static bool CreateFolderIfNotExist(string folderPath)
+        {
+            var pathParts = folderPath.Split('\\');
+            List<string> parts = new List<string>();
+            StringBuilder pathChecked = new StringBuilder();
+            try
+            {
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+
+                    return true;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return false;
+            }
+        }
+
+        private static void Log(string text, ConsoleColor color)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(text);
+            StringBuilder sb = new StringBuilder();
+            sb.Append(text);
+
+            // flush every 20 seconds as you do it
+            //File.AppendAllText(logFilePath, $"{DateTime.Now}\t{sb.ToString()}");
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(logFilePath, true))
+            {
+                file.WriteLine($"{DateTime.Now}\t{sb.ToString()}");
+            }
+
+            sb.Clear();
+
+            Console.ResetColor();
+        }
+
+        private static void LogEmptyLine()
+        {
+            Console.WriteLine("");
+            StringBuilder sb = new StringBuilder();
+            sb.Append("");
+
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(logFilePath, true))
+            {
+                file.WriteLine($"{DateTime.Now}\t{sb.ToString()}");
+            }
+
+            sb.Clear();
         }
     }
 }
