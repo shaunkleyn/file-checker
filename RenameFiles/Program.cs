@@ -338,6 +338,10 @@ namespace RenameFiles
                     string folderName = folder.Split('\\').Last();
                     Log($"Checking \"{ folderName }\"", ConsoleColor.Gray);
                     match = expression.Match(folderName);
+                    if (!match.Success)
+                    {
+                        Log("Folder does not match name format", ConsoleColor.Red);
+                    }
                     if (match.Success)
                     {
                         string[] files = Directory.GetFiles(folder, "*.*", SearchOption.TopDirectoryOnly);
